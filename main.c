@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cpp_magic.h"
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 
@@ -35,20 +36,53 @@ typedef struct {
   Expr value;
 } *Scope;
 
-Expr *new_abs(Variable bound_var, Expr *body) {
-  if (!bound_var || !body) {
-    fprintf(stderr, "Error: NULL argument in new_abs\n");
-    exit(EXIT_FAILURE);
+#define CHECK_NULL_ARGS_(var) !(var)
+#define OR_OP() ||
+#define CHECK_NULL_ARGS(...)                                                   \
+  if (EVAL(MAP(CHECK_NULL_ARGS_, OR_OP, __VA_ARGS__))) {                       \
+    fprintf(stderr, "Error: NULL argument(s) passed to function\n");           \
+    exit(EXIT_FAILURE);                                                        \
   }
-  Abstraction *abs = malloc(sizeof(Abstraction));
-  if (!abs) {
-    fprintf(stderr, "Error: Memory allocation failed\n");
-    exit(EXIT_FAILURE);
+
+#define NEW_EXPR                                                               \
+  ({                                                                           \
+    Expr *e = malloc(sizeof(Expr));                                            \
+    if (!e) {                                                                  \
+      fprintf(stderr, "Error: Memory allocation failed\n");                    \
+      exit(EXIT_FAILURE);                                                      \
+    }                                                                          \
+    e;                                                                         \
+  })
+
+#define NEW_EXPR_IMPL(check, initialize)                                       \
+  {                                                                            \
+    CHECK_NULL_ARGS check;                                                     \
+    Expr *e = NEW_EXPR;                                                        \
+    initialize;                                                                \
+    return e;                                                                  \
   }
-  abs->bound_var = bound_var;
-  abs->body = body;
-  return (Expr *)abs;
-}
+
+Expr *new_abs(Variable bound_var, Expr *body) NEW_EXPR_IMPL((bound_var, body), {
+  e->type = EXPR_ABS;
+  e->u.abs.bound_var = bound_var;
+  e->u.abs.body = body;
+});
+
+Expr *new_app(Expr *func, Expr *arg) NEW_EXPR_IMPL((func, arg), {
+  e->type = EXPR_APP;
+  e->u.app.func = func;
+  e->u.app.arg = arg;
+});
+
+Expr *new_var(Variable var) NEW_EXPR_IMPL((var), {
+  e->type = EXPR_VAR;
+  e->u.var = var;
+});
+
+#undef NEW_EXPR_IMPL
+#undef NEW_EXPR
+#undef CHECK_NULL_ARGS
+#undef CHECK_NULL_ARGS_
 
 void _print_expr(const Expr *expr) {
   if (!expr) {
@@ -110,19 +144,14 @@ int main(int argc, char *argv[]) {
   hmput(s, x, x_expr);
   hmput(s, y, y_expr);
 
-  Abstraction inner = {.bound_var = y, .body = &x_expr};
-  Expr inner_expr = (Expr){.type = EXPR_ABS, .u.abs = inner};
-  Abstraction outer = {.bound_var = x, .body = &inner_expr};
-  Expr outer_expr = (Expr){.type = EXPR_ABS, .u.abs = outer};
-  print_expr(&outer_expr);
+  Expr *inner = new_abs(y, &x_expr);
+  Expr *outer = new_abs(x, inner);
+  print_expr(outer);
 
-  Application app = {.func = &outer_expr, .arg = &y_expr};
-  Expr app_expr = (Expr){.type = EXPR_APP, .u.app = app};
-  Application test_app = {.func = &app_expr, .arg = &x_expr};
-  Expr test_app_expr = (Expr){.type = EXPR_APP, .u.app = test_app};
-  Expr test_expr = (Expr){.type = EXPR_APP, .u.app = test_app};
-  print_expr(&test_expr);
-  Expr *expr = eval(&test_expr, s);
+  Expr *app1 = new_app(outer, &y_expr);
+  Expr *app2 = new_app(app1, &x_expr);
+  print_expr(app2);
+  Expr *expr = eval(app2, s);
   print_expr(expr);
 
   return EXIT_SUCCESS;
