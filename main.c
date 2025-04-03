@@ -110,9 +110,7 @@ int main(int argc, char *argv[]) {
   print_expr(&outer_expr);
 
   Application app = {.func = &outer_expr, .arg = &y_expr};
-  Expr app_expr = EXPR(&app);
-  Application app_eval = {.func = &app_expr, .arg = &x_expr};
-  Expr test_expr = EXPR(&app_eval);
+  Expr test_expr = EXPR(&((Application){.func = &EXPR(&app), .arg = &x_expr}));
   print_expr(&test_expr);
   Expr expr = eval(test_expr, s);
   print_expr(&expr);
