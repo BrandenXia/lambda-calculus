@@ -1,3 +1,5 @@
+#include "string.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,7 +36,8 @@ typedef struct Expr {
 typedef struct {
   Variable key;
   Expr value;
-} *Scope;
+} Scope;
+typedef Scope *Stack;
 
 #define CHECK_NULL_ARGS_(var) !(var)
 #define OR_OP() ||
@@ -116,18 +119,42 @@ void print_expr(const Expr *expr) {
   putchar('\n');
 }
 
-Expr *eval(Expr *expr, Scope s) {
+void print_stack(Stack s) {
+  puts("-------------------");
+  puts("Stack contents:\n");
+  for (ptrdiff_t i = arrlen(s) - 1; i >= 0; --i) {
+    printf("  %s: ", s[i].key);
+    print_expr(&s[i].value);
+  }
+  if (arrlen(s) == 0)
+    puts("  (empty stack)");
+  putchar('\n');
+  puts("-------------------");
+}
+
+ptrdiff_t find_in_stack(Stack s, Variable var) {
+  for (ptrdiff_t i = arrlen(s) - 1; i >= 0; --i)
+    if (strcmp(s[i].key, var) == 0)
+      return i;
+
+  return -1;
+}
+
+Expr *eval(Expr *expr, Stack *s) {
   switch (expr->type) {
   case EXPR_VAR: {
     Variable var = expr->u.var;
-    ptrdiff_t index = hmgeti(s, var);
-    return index != -1 ? &s[index].value : NULL;
+    ptrdiff_t i = find_in_stack(*s, var);
+    return (i >= 0) ? &(*s)[i].value : expr;
   }
   case EXPR_APP: {
     Expr *func = eval(expr->u.app.func, s);
     Expr *arg = eval(expr->u.app.arg, s);
-    hmput(s, func->u.abs.bound_var, *arg);
-    return eval(func->u.abs.body, s);
+    print_stack(*s);
+    arrput(*s, ((Scope){.key = func->u.abs.bound_var, .value = *arg}));
+    Expr *res = eval(func->u.abs.body, s);
+    print_stack(*s);
+    return res;
   }
   default:
     return expr;
@@ -135,14 +162,12 @@ Expr *eval(Expr *expr, Scope s) {
 }
 
 int main(int argc, char *argv[]) {
-  Scope s = NULL;
+  Stack s = NULL;
 
   Variable x = "x";
   Variable y = "y";
   Expr x_expr = (Expr){.type = EXPR_VAR, .u.var = x};
   Expr y_expr = (Expr){.type = EXPR_VAR, .u.var = y};
-  hmput(s, x, x_expr);
-  hmput(s, y, y_expr);
 
   Expr *inner = new_abs(y, &x_expr);
   Expr *outer = new_abs(x, inner);
@@ -151,7 +176,7 @@ int main(int argc, char *argv[]) {
   Expr *app1 = new_app(outer, &y_expr);
   Expr *app2 = new_app(app1, &x_expr);
   print_expr(app2);
-  Expr *expr = eval(app2, s);
+  Expr *expr = eval(app2, &s);
   print_expr(expr);
 
   return EXIT_SUCCESS;
