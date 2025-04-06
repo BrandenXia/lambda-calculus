@@ -110,26 +110,35 @@ void _print_expr(const Expr *expr) {
   }
 }
 
-void print_expr(const Expr *expr) {
-  _print_expr(expr);
-  putchar('\n');
-}
+#define print_expr(expr)                                                       \
+  {                                                                            \
+    _print_expr((expr));                                                       \
+    putchar('\n');                                                             \
+  }                                                                            \
+  while (0)
 
-inline void print_stack(Stack s) {
+#define STRINGIFY_INNER(x) #x
+#define STRINGIFY(x) STRINGIFY_INNER(x)
 #if DEBUG
-  puts("-------------------");
-  puts("Stack contents:\n");
-
-  for (ptrdiff_t i = arrlen(s) - 1; i >= 0; --i)
-    print_expr(&s[i]);
-
-  if (arrlen(s) == 0)
-    puts("  (empty stack)");
-
-  putchar('\n');
-  puts("-------------------");
+#define print_stack(s)                                                         \
+  {                                                                            \
+    puts("-------------------");                                               \
+    puts("Stack contents at " __FILE__ ":" STRINGIFY(__LINE__) ":");           \
+                                                                               \
+    for (ptrdiff_t i = arrlen((s)) - 1; i >= 0; --i) {                         \
+      printf("  ");                                                            \
+      print_expr(&(s)[i]);                                                     \
+    }                                                                          \
+                                                                               \
+    if (arrlen((s)) == 0)                                                      \
+      puts("  (empty stack)");                                                 \
+                                                                               \
+    puts("-------------------");                                               \
+  }                                                                            \
+  while (0)
+#else
+#define print_stack(s)
 #endif
-}
 
 Expr *eval(Expr *expr, Stack *s) {
   switch (expr->type) {
@@ -143,10 +152,10 @@ Expr *eval(Expr *expr, Stack *s) {
     return s[len - var];
   }
   case EXPR_APP: {
-    Expr *func = eval(expr->u.app.func, s);
     Expr *arg = eval(expr->u.app.arg, s);
-    arrput(*s, *arg);
+    Expr *func = eval(expr->u.app.func, s);
     print_stack(*s);
+    arrput(*s, *arg);
     Expr *res = eval(func->u.abs.body, s);
     print_stack(*s);
     return res;
@@ -162,13 +171,14 @@ int main(int argc, char *argv[]) {
   Expr *one = new_var(1);
   Expr *two = new_var(2);
   Expr *id = new_abs(one);
+  Expr *sb = new_abs(two);
 
   Expr *inner = new_abs(two);
   Expr *outer = new_abs(inner);
   print_expr(outer);
 
   Expr *app1 = new_app(outer, id);
-  Expr *app2 = new_app(app1, id);
+  Expr *app2 = new_app(app1, sb);
   print_expr(app2);
   Expr *expr = eval(app2, &s);
   print_expr(expr);
