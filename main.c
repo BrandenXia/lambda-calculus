@@ -120,13 +120,13 @@ void _print_expr(const Expr *expr) {
 #define STRINGIFY_INNER(x) #x
 #define STRINGIFY(x) STRINGIFY_INNER(x)
 #if DEBUG
-#define print_stack(s)                                                         \
+#define dbg_stack(s)                                                           \
   {                                                                            \
     puts("-------------------");                                               \
     puts("Stack contents at " __FILE__ ":" STRINGIFY(__LINE__) ":");           \
                                                                                \
-    for (ptrdiff_t i = arrlen((s)) - 1; i >= 0; --i) {                         \
-      printf("  ");                                                            \
+    for (ptrdiff_t i = arrlen((s)) - 1, j = 1; i >= 0; --i, j++) {             \
+      printf("  [%ld] ", j);                                                   \
       print_expr(&(s)[i]);                                                     \
     }                                                                          \
                                                                                \
@@ -154,10 +154,10 @@ Expr *eval(Expr *expr, Stack *s) {
   case EXPR_APP: {
     Expr *arg = eval(expr->u.app.arg, s);
     Expr *func = eval(expr->u.app.func, s);
-    print_stack(*s);
+    dbg_stack(*s);
     arrput(*s, *arg);
     Expr *res = eval(func->u.abs.body, s);
-    print_stack(*s);
+    dbg_stack(*s);
     return res;
   }
   default:
