@@ -31,7 +31,7 @@ typedef struct Expr {
     Variable var;
     Abstraction abs;
     Application app;
-  } u;
+  };
 } Expr;
 
 typedef Expr *Stack;
@@ -64,18 +64,18 @@ typedef Expr *Stack;
 
 Expr *new_abs(Expr *body) NEW_EXPR_IMPL((body), {
   e->type = EXPR_ABS;
-  e->u.abs.body = body;
+  e->abs.body = body;
 });
 
 Expr *new_app(Expr *func, Expr *arg) NEW_EXPR_IMPL((func, arg), {
   e->type = EXPR_APP;
-  e->u.app.func = func;
-  e->u.app.arg = arg;
+  e->app.func = func;
+  e->app.arg = arg;
 });
 
 Expr *new_var(Variable var) NEW_EXPR_IMPL((var), {
   e->type = EXPR_VAR;
-  e->u.var = var;
+  e->var = var;
 });
 
 #undef NEW_EXPR_IMPL
@@ -91,19 +91,19 @@ void _print_expr(const Expr *expr) {
 
   switch (expr->type) {
   case EXPR_VAR:
-    printf("%u", expr->u.var);
+    printf("%u", expr->var);
     break;
   case EXPR_ABS: {
     printf("(λ ");
-    _print_expr(expr->u.abs.body);
+    _print_expr(expr->abs.body);
     putchar(')');
     break;
   }
   case EXPR_APP: {
     putchar('(');
-    _print_expr(expr->u.app.func);
+    _print_expr(expr->app.func);
     putchar(' ');
-    _print_expr(expr->u.app.arg);
+    _print_expr(expr->app.arg);
     putchar(')');
     break;
   }
@@ -143,7 +143,7 @@ void _print_expr(const Expr *expr) {
 Expr *eval(Expr *expr, Stack *s) {
   switch (expr->type) {
   case EXPR_VAR: {
-    Variable var = expr->u.var;
+    Variable var = expr->var;
     ptrdiff_t len = arrlen(*s);
     if (var > len) {
       fprintf(stderr, "Error: Variable %u not found in stack\n", var);
@@ -152,11 +152,11 @@ Expr *eval(Expr *expr, Stack *s) {
     return s[len - var];
   }
   case EXPR_APP: {
-    Expr *arg = eval(expr->u.app.arg, s);
-    Expr *func = eval(expr->u.app.func, s);
+    Expr *arg = eval(expr->app.arg, s);
+    Expr *func = eval(expr->app.func, s);
     dbg_stack(*s);
     arrput(*s, *arg);
-    Expr *res = eval(func->u.abs.body, s);
+    Expr *res = eval(func->abs.body, s);
     dbg_stack(*s);
     return res;
   }
