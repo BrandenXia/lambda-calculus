@@ -36,21 +36,24 @@ typedef struct Expr {
 
 typedef Expr *Stack;
 
+#define ERROR(msg, ...)                                                        \
+  {                                                                            \
+    fprintf(stderr, "Error: " msg "\n", ##__VA_ARGS__);                        \
+    exit(EXIT_FAILURE);                                                        \
+  }                                                                            \
+  while (0)
+
 #define CHECK_NULL_ARGS_(var) !(var)
 #define OR_OP() ||
 #define CHECK_NULL_ARGS(...)                                                   \
-  if (EVAL(MAP(CHECK_NULL_ARGS_, OR_OP, __VA_ARGS__))) {                       \
-    fprintf(stderr, "Error: NULL argument(s) passed to function\n");           \
-    exit(EXIT_FAILURE);                                                        \
-  }
+  if (EVAL(MAP(CHECK_NULL_ARGS_, OR_OP, __VA_ARGS__)))                         \
+    ERROR("NULL argument(s) passed to function");
 
 #define NEW_EXPR                                                               \
   ({                                                                           \
     Expr *e = malloc(sizeof(Expr));                                            \
-    if (!e) {                                                                  \
-      fprintf(stderr, "Error: Memory allocation failed\n");                    \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
+    if (!e)                                                                    \
+      ERROR("Memory allocation failed");                                       \
     e;                                                                         \
   })
 
@@ -84,10 +87,8 @@ Expr *new_var(Variable var) NEW_EXPR_IMPL((var), {
 #undef CHECK_NULL_ARGS_
 
 void _print_expr(const Expr *expr) {
-  if (!expr) {
-    printf("Error: NULL expression\n");
-    return;
-  }
+  if (!expr)
+    ERROR("NULL expression");
 
   switch (expr->type) {
   case EXPR_VAR:
@@ -145,10 +146,8 @@ Expr *eval(Expr *expr, Stack *s) {
   case EXPR_VAR: {
     Variable var = expr->var;
     ptrdiff_t len = arrlen(*s);
-    if (var > len) {
-      fprintf(stderr, "Error: Variable %u not found in stack\n", var);
-      exit(EXIT_FAILURE);
-    }
+    if (var > len)
+      ERROR("Variable %u not found in stack", var);
     return s[len - var];
   }
   case EXPR_APP: {
